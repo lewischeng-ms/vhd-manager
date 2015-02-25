@@ -1,6 +1,6 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VHDMan", "VHDMan\VHDMan.csproj", "{A52428E6-2F19-49B3-8F26-FF7533F39724}"
 EndProject
 Global

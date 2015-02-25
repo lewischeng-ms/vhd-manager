@@ -43,7 +43,7 @@ namespace VHDMan
         /// </summary>
         /// <param name="vhdFile">...</param>
         /// <returns>record string</returns>
-        private string RecordOfVHDFile(VHDFile vhdFile)
+        private string RecordStringOfVHDFile(VHDFile vhdFile)
         {
             if (vhdFile == null)
                 return "";
@@ -66,12 +66,18 @@ namespace VHDMan
         {
             if (vhdFile == null)
                 return;
-            vhdFile.Mount();
-            lblStatus.Text = vhdFile.Path + " mounted";
-            if (vhdFile.ReadOnly)
-                lblStatus.Text += " as read only!";
+            if (vhdFile.Mount())
+            {
+                lblStatus.Text = vhdFile.Path + "已挂载";
+                if (vhdFile.ReadOnly)
+                    lblStatus.Text += "[只读模式]！";
+                else
+                    lblStatus.Text += "！";
+            }
             else
-                lblStatus.Text += "!";
+            {
+                lblStatus.Text = vhdFile.Path + "挂载失败！";
+            }
         }
 
         /// <summary>
@@ -82,8 +88,14 @@ namespace VHDMan
         {
             if (vhdFile == null)
                 return;
-            vhdFile.Unmount();
-            lblStatus.Text = vhdFile.Path + " unmounted!";
+            if (vhdFile.Unmount())
+            {
+                lblStatus.Text = vhdFile.Path + "已卸载！";
+            }
+            else
+            {
+                lblStatus.Text = vhdFile.Path + "卸载失败！";
+            }
         }
 
         /// <summary>
@@ -106,7 +118,7 @@ namespace VHDMan
             }
             catch (IOException)
             {
-                MessageBox.Show("IO error occurred while opening " + listFile + "!");
+                MessageBox.Show("无法打开列表文件" + listFile + "！", "错误");
                 Application.Exit();
                 return;
             }
@@ -155,12 +167,12 @@ namespace VHDMan
             }
             catch (IOException)
             {
-                MessageBox.Show("IO error occurred while opening " + listFile + "!");
+                MessageBox.Show("无法保存列表文件" + listFile + "！", "错误");
                 Application.Exit();
                 return;
             }
             foreach (VHDFile vhdFile in clbVhdFiles.Items)
-                strmWriter.WriteLine(RecordOfVHDFile(vhdFile));
+                strmWriter.WriteLine(RecordStringOfVHDFile(vhdFile));
             strmWriter.Close();
         }
 
@@ -169,7 +181,7 @@ namespace VHDMan
             // Only Vista+ supports vhd.
             if (Environment.OSVersion.Platform != PlatformID.Win32NT || Environment.OSVersion.Version.Major < 6)
             {
-                MessageBox.Show("VHDMan only supports Windows Vista and above!");
+                MessageBox.Show("VHD管理器只支持Vista以上系统！", "错误");
                 Application.Exit();
             }
             LoadListFile();
@@ -196,7 +208,7 @@ namespace VHDMan
                 FileInfo fi = new FileInfo(fileName);
                 if (!fi.Exists)
                 {
-                    MessageBox.Show("File: " + fileName + " does not exist!");
+                    MessageBox.Show("文件" + fileName + "不存在！", "错误");
                     continue;
                 }
                 AddVHDFile(fileName, false, true);
@@ -252,7 +264,7 @@ namespace VHDMan
 
         private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            MessageBox.Show("VHDMan by Lewis Cheng 2010/4/17");
+            MessageBox.Show("VHD管理器 2.0 作者：成立 日期：2011/5/21", "关于");
         }
 
         private void deleteFromDiskToolStripMenuItem_Click(object sender, EventArgs e)
@@ -261,24 +273,73 @@ namespace VHDMan
             if (vhdFile != null)
             {
                 // Make user to confirm twice before deleting.
-                if (MessageBox.Show("Do you want to delete the vhd file " + vhdFile.Path + " from disk?",
-                                    "Confirmation",
+                if (MessageBox.Show("你确实从磁盘上要删除VHD文件 " + vhdFile.Path + " 吗？",
+                                    "确认删除",
                                     MessageBoxButtons.YesNo)
                                     == System.Windows.Forms.DialogResult.No)
                     return;
-                if (MessageBox.Show("Do you really want to delete the vhd file? Contents of it will be permanently lost!",
-                    "Second confirmation",
+                if (MessageBox.Show("你真的要删除该VHD文件吗？该虚拟磁盘内容讲永久丢失！",
+                    "再次确认",
                     MessageBoxButtons.YesNo)
                     == System.Windows.Forms.DialogResult.No)
                     return;
-                vhdFile.DeleteFromDisk();
-                clbVhdFiles.Items.Remove(vhdFile);
+                if (vhdFile.DeleteFromDisk())
+                {
+                    clbVhdFiles.Items.Remove(vhdFile);
+                    lblStatus.Text = vhdFile.Path + "删除成功！";
+                }
+                else
+                {
+                    lblStatus.Text = vhdFile.Path + "删除失败！";
+                }
             }
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             SaveListFile();
+        }
+
+        private void CreateVDiskToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            CreateVDiskForm dlg = new CreateVDiskForm();
+            dlg.ShowDialog();
+
+            VHDFile vhdFile = dlg.VhdFile;
+            if (dlg.VhdCreated)
+            {
+                AddVHDFile(dlg.VhdFile.Path, false, true);
+                lblStatus.Text = vhdFile.Path + "已创建！";
+            }
+            else if (vhdFile == null)
+            {
+                lblStatus.Text = "未创建虚拟磁盘！";
+            }
+            else
+            {
+                lblStatus.Text = vhdFile.Path + "创建失败！";
+            }
+        }
+
+        private void mnuVhdFiles_Opening(object sender, CancelEventArgs e)
+        {
+            if (clbVhdFiles.SelectedItems.Count < 1)
+                e.Cancel = true;
+        }
+
+        private void clbVhdFiles_MouseClick(object sender, MouseEventArgs e)
+        {
+            lblStatus.Text = "就绪";
+        }
+
+        private void fileToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            lblStatus.Text = "就绪";
+        }
+
+        private void helpToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            lblStatus.Text = "就绪";
         }
     }
 }

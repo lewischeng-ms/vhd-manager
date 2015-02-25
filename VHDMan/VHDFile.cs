@@ -13,7 +13,7 @@ namespace VHDMan
     /// You can mount, unmount or delete the vhd file by
     /// its corresponding object.
     /// </summary>
-    class VHDFile
+    public class VHDFile
     {
         /// <summary>
         /// Path of the VHD file.
@@ -40,9 +40,10 @@ namespace VHDMan
         /// Call system utility 'disk-part' and load the specified script file.
         /// </summary>
         /// <param name="scriptText">actions to be taken in the disk-part</param>
-        private void CallDiskpart(string scriptText)
+        /// <returns>if diskpart succeeds</returns>
+        private bool CallDiskpart(string scriptText)
         {
-            if (scriptText == null) return;
+            if (scriptText == null) return false;
 
             // Create a diskpart-script file.
             StreamWriter strmWriter = new StreamWriter("~tmp.txt");
@@ -60,12 +61,46 @@ namespace VHDMan
             // Remove temp file.
             FileInfo fi = new FileInfo("~tmp.txt");
             fi.Delete();
+
+            return proc.ExitCode == 0;
+        }
+
+        /// <summary>
+        /// Create a vhd file.
+        /// </summary>
+        /// <param name="sizeInMegabytes">vhd size in MB</param>
+        /// <param name="prealloc">preallocate space for vhd size or not</param>
+        /// <param name="fastpart">fast partition the vhd</param>
+        /// <returns>if creation succeeds</returns>
+        public bool Create(int sizeInMegabytes, bool prealloc, bool fastpart)
+        {
+            // Script text.
+            string text = "create vdisk file=\"" + Path + "\" maximum=" + sizeInMegabytes + " type=";
+            if (prealloc)
+                text += "fixed";
+            else
+                text += "expandable";
+
+            if (fastpart)
+            {
+                text += Environment.NewLine + "select vdisk file=\"" + Path + "\"";
+                text += Environment.NewLine + "attach vdisk";
+                text += Environment.NewLine + "convert mbr";
+                text += Environment.NewLine + "create partition primary";
+                text += Environment.NewLine + "format";
+                text += Environment.NewLine + "assign";
+            }
+            text += Environment.NewLine + "exit";
+            
+            // Call Diskpart.
+            return CallDiskpart(text);
         }
 
         /// <summary>
         /// Mount the vhd file.
         /// </summary>
-        public void Mount()
+        /// <returns>if mount succeeds</returns>
+        public bool Mount()
         {
             // Script text.
             string text = "select vdisk file=" + Path + Environment.NewLine;
@@ -76,13 +111,14 @@ namespace VHDMan
             text += Environment.NewLine + "exit";
 
             // Call Diskpart.
-            CallDiskpart(text);
+            return CallDiskpart(text);
         }
 
         /// <summary>
         /// Unmount the vhd file.
         /// </summary>
-        public void Unmount()
+        /// <returns>if unmount succeeds</returns>
+        public bool Unmount()
         {
             // Script text.
             string text = "select vdisk file=" + Path + Environment.NewLine +
@@ -90,21 +126,26 @@ namespace VHDMan
                           "exit";
  
             // Call Diskpart.
-            CallDiskpart(text);
+            return CallDiskpart(text);
         }
 
         /// <summary>
         /// Delete the vhd file from disk.
         /// </summary>
-        public void DeleteFromDisk()
+        /// <returns>if deletion succeeds</returns>
+        public bool DeleteFromDisk()
         {
             // First try to unmount it anyway.
-            Unmount();
+            if (!Unmount()) return false;
 
             // Delete it from disk.
             FileInfo fi = new FileInfo(Path);
             if (fi.Exists)
                 fi.Delete();
+
+            // Confirm deletion.
+            fi.Refresh();
+            return !fi.Exists;
         }
 
         /// <summary>
@@ -137,7 +178,7 @@ namespace VHDMan
         {
             string result = Path;
             if (ReadOnly)
-                result += "[Read Only]";
+                result += "[只读模式]";
             return result;
         }
     }
